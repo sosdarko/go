@@ -16,17 +16,18 @@ type stick struct {
 	Discs []*disc
 }
 
+func (s *stick) init(nDiscs int) {
+	// make underlying array and set s.Discs to be zero slice
+	s.Discs = make([]*disc, nDiscs)[0:0]
+}
+
 func (s *stick) fill(d []*disc) {
 	if d == nil {
 		s.Discs = nil
 		return
 	}
-	n := len(d)
-	s.Discs = make([]*disc, n)
-	var i int
-	for i = 0; i < n; i++ {
-		s.Discs[i] = d[i]
-	}
+	s.Discs = s.Discs[:len(d)]
+	copy(s.Discs, d)
 }
 
 func (s *stick) printStick() {
@@ -45,15 +46,23 @@ func (s *stick) getTopSize() int {
 }
 
 func (s *stick) removeTop() *disc {
-	d := s.Discs[len(s.Discs)-1]
-	if len(s.Discs) > 0 {
-		s.Discs = s.Discs[0 : len(s.Discs)-1]
+	n := len(s.Discs)
+	// store last disc on the stick
+	d := s.Discs[n-1]
+	if n > 0 {
+		// reducing length by one
+		s.Discs = s.Discs[0 : n-1]
 	}
 	return d
 }
 
 func (s *stick) putOnTop(d *disc) {
-	s.Discs = append(s.Discs, d)
+	// current length of discs
+	n := len(s.Discs)
+	// extend slice by one
+	s.Discs = s.Discs[:n+1]
+	// set last element to be given disc
+	s.Discs[n] = d
 }
 
 // Tower represents tower of Hanoy
@@ -64,10 +73,12 @@ type Tower struct {
 }
 
 // Init the tower
-func (t *Tower) Init(d1 []*disc, d2 []*disc, d3 []*disc) {
-	t.Stick1.fill(d1)
-	t.Stick2.fill(d2)
-	t.Stick3.fill(d3)
+func (t *Tower) Init(d []*disc, nStick int) {
+	n := len(d)
+	t.Stick1.init(n)
+	t.Stick2.init(n)
+	t.Stick3.init(n)
+	t.getNthStick(nStick).fill(d)
 }
 
 func (t *Tower) getNthStick(n int) *stick {
@@ -94,6 +105,8 @@ func (t *Tower) move(fromStick int, toStick int) {
 	if s2.getTopSize() == 0 || s2.getTopSize() > s1.getTopSize() {
 		s2.putOnTop(s1.removeTop())
 		fmt.Printf("%d -> %d\n", fromStick, toStick)
+	} else {
+		panic("Illegal move!")
 	}
 	PrintTower(t)
 	println()
@@ -151,14 +164,18 @@ func main() {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print("Enter number of discs: ")
 	text, _ := reader.ReadString('\n')
-	n, err := strconv.Atoi(strings.Trim(text, "\n\r"))
+	t2 := strings.Trim(text, "\n\r")
+	if t2 == "" {
+		t2 = "3"
+	}
+	n, err := strconv.Atoi(t2)
 	if err != nil {
 		fmt.Println(err)
 	}
 	fmt.Printf("running for %d discs\n", n)
 	discs = initDiscs(n)
 	//fmt.Printf("discs: %d\n", discs)
-	t.Init(discs, nil, nil)
+	t.Init(discs, 1)
 	PrintTower(&t)
 	println()
 	t.MoveAll(1, 2)
