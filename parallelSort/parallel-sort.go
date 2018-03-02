@@ -7,14 +7,37 @@ import (
 	"time"
 )
 
-/*
-func inPlaceMerge(mergeTo []int, mergeFrom []int) {
-	i := 0
-	j := 0
+// inPlaceMerge supposes that aTo has enough capacity to take aFrom array in
+func inPlaceMerge(aTo []int, aFrom []int) {
+	i := len(aTo) - 1
+	j := len(aFrom) - 1
+	for j >= 0 {
+		startI := i
+		// find place from j-th element of aFrom in aTo
+		for aFrom[j] < aTo[i] {
+			i--
+			if i < 0 {
+				break
+			}
+		}
+		// shift members of aTo for j position right
+		copy(aTo[i+j+2:startI+j+2], aTo[i+1:startI+1])
+		if i >= 0 {
+			// this could be further optimized
+			// by traversing aFrom (reducing j) to find least memeber that is bigger than aTo[i]
+			// and then copy whole sequence at once
+			copy(aTo[i+j+1:i+j+2], aFrom[j:j+1])
+		} else {
+			copy(aTo[:j+1], aFrom[:j+1])
+			break
+		}
+		j--
+	}
 }
-*/
-// merges two sorted sequences into new sorted one
-func merge(a []int, b []int) (c []int) {
+
+// Merge merges two sorted sequences into new sorted one
+// note that result slice will be put on heap as out param
+func Merge(a []int, b []int) (c []int) {
 	i := 0
 	j := 0
 	// will be placed on the heap
@@ -77,12 +100,12 @@ func DoIt(nSize, nChunk int) {
 	fmt.Printf("receiving go routines at %v\n", time.Now())
 	for i := 0; i < nSize; i += nChunk {
 		sortedSubarray := <-arrayChannel
-		fmt.Printf("chunk received at %v\n", time.Now())
+		//fmt.Printf("chunk received at %v\n", time.Now())
 		if i == 1 {
 			sortedArray = sortedSubarray
 		} else {
 			// merge so far sorted array with new chunk
-			sortedArray = merge(sortedArray, sortedSubarray)
+			sortedArray = Merge(sortedArray, sortedSubarray)
 		}
 	}
 	endTime := time.Now()
@@ -90,6 +113,40 @@ func DoIt(nSize, nChunk int) {
 	fmt.Printf("execution time = %v\n", time.Duration(endTime.UnixNano()-startTime.UnixNano()))
 }
 
+// DoIt2 ...
+func DoIt2(nSize, nChunk int, bPrint bool) {
+	ar := createRandomArray(nSize)
+	arrayChannel := make(chan []int)
+	if bPrint {
+		fmt.Println("Original array:")
+		fmt.Println(ar)
+	}
+	sortedArray := make([]int, nSize)
+	startTime := time.Now()
+	fmt.Printf("starting go routines at %v\n", startTime)
+	for i := 0; i < nSize; i += nChunk {
+		// in place sort of subarray
+		go smallSort(ar[i:i+nChunk], arrayChannel)
+	}
+	fmt.Printf("receiving go routines at %v\n", time.Now())
+	for i := 0; i < nSize; i += nChunk {
+		sortedSubarray := <-arrayChannel
+		//fmt.Printf("chunk received at %v\n", time.Now())
+		if i == 0 {
+			copy(sortedArray, sortedSubarray)
+		} else {
+			// merge so far sorted array with new chunk
+			inPlaceMerge(sortedArray[:i], sortedSubarray)
+		}
+	}
+	endTime := time.Now()
+	if bPrint {
+		fmt.Println(sortedArray)
+	}
+	fmt.Printf("all done at %v\n", endTime)
+	fmt.Printf("execution time = %v\n", time.Duration(endTime.UnixNano()-startTime.UnixNano()))
+}
+
 func main() {
-	DoIt(15000000, 15000)
+	DoIt2(100, 10, true)
 }
